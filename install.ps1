@@ -46,11 +46,15 @@ $src = Join-Path $PSScriptRoot "src\$ScriptName"
 if (-not (Test-Path -LiteralPath $src)) {
     # run from a lone downloaded install.ps1: fetch the watcher from the repo
     $tmp = Join-Path $env:TEMP "td-dialog-restore-$([guid]::NewGuid().ToString('N').Substring(0,8)).ps1"
-    Write-Step "source not found next to this script; downloading $RawBase/$ScriptName"
+    $url = "$RawBase/src/$ScriptName"
+    Write-Step "source not found next to this script; downloading $url"
     try {
-        Invoke-WebRequest -UseBasicParsing -Uri "$RawBase/$ScriptName" -OutFile $tmp
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $tmp
     } catch {
         Fail "could not download the watcher: $($_.Exception.Message)"
+    }
+    if (-not (Test-Path -LiteralPath $tmp) -or (Get-Item -LiteralPath $tmp).Length -lt 1000) {
+        Fail "downloaded watcher looks wrong ($url) - download the repository ZIP instead."
     }
     $src = $tmp
 }
