@@ -177,21 +177,29 @@ a ~8 KB standalone `.exe` — see [below](#the-standalone-exe-optional).
 
 ## Why this happens
 
-On the machine this was written for (Lenovo Legion Go, Windows 11 26200, a rotated OLED panel),
-TouchDesigner 2025.33230 creates its floating dialogs with `showCmd = SW_SHOWMAXIMIZED`. The
-measurements that pointed at an environmental cause rather than a project, preference or build
-problem:
+On the machine this was written for (Lenovo Legion Go, Windows 11 26200/26300, a rotated OLED panel),
+TouchDesigner 2025.33230 creates its floating dialogs with `showCmd = SW_SHOWMAXIMIZED`. The measurements that
+pointed at the display geometry rather than a project, preference or build problem — note *which caller* each
+number came from, because they disagree:
 
-| Probe | Value |
-|---|---|
-| `GetDpiForSystem()` | 96 (100 %) — fixed at logon, ignores the scale slider |
-| `GetDpiForWindow(TD main)` / monitor DPI | 144 (150 %) |
-| `GetDeviceCaps(HORZRES/VERTRES)` | 800×1280 **portrait** for a 1920×1200 landscape desktop |
-| `dmDisplayOrientation` | 1 (90°) — the panel is physically portrait and presented rotated |
+| Probe | DPI-unaware caller | Per-monitor-v2-aware caller |
+|---|---|---|
+| `GetDpiForSystem()` | **96** (100 %) | **144** (150 %) |
+| `SM_CXSCREEN × SM_CYSCREEN` | **1280 × 800** (desktop ÷ 1.5) | **1920 × 1200** |
+| `GetDeviceCaps(HORZRES/VERTRES)` | **800 × 1280** — portrait, transposed | **1920 × 1200** |
+| `dmDisplayOrientation` | 1 (90°) | 1 (90°) |
+| Panel, from EDID / WMI | 12 × 19 cm (portrait), native source mode `1600 × 2560` | same |
 
-Portrait metrics and a system DPI that disagrees with the monitor scale are a plausible reason for
-TouchDesigner's dialog sizing to end up maximized. The symptom reproduced identically at 100 / 125 /
-150 % scaling, at 1920×1200 and 2560×1600, on a brand-new default project, with default
+So the panel is physically portrait, Windows presents it rotated 90° as a 1920 × 1200 desktop at 150 %, and
+the same screen answers two different geometries depending on the caller's DPI-awareness class. An application
+that is per-monitor aware but sizes a window from a legacy or rotated value computes one space and places in
+another.
+
+Honest limit: TouchDesigner itself is per-monitor DPI aware (`GetProcessDpiAwareness` = 2, `GetDpiForWindow`
+= 144), i.e. it is *not* the unaware caller in that table, so this mismatch is the best available explanation
+for its behaviour, not a proven cause — the behaviour itself (dialogs created maximized, reproducibly, on a
+default project) is measured, and the fix does not depend on the cause. The symptom reproduced identically at
+100 / 125 / 150 % scaling, at 1920×1200 and 2560×1600, on a brand-new default project, with default
 preferences, with Parsec stopped and with a rebuilt font cache — so nothing user-settable changes it.
 
 The full investigation, including everything that was ruled out, is in

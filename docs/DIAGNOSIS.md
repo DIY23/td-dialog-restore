@@ -61,22 +61,29 @@ window on each <kbd>Tab</kbd>).
 
 ## 5. Why it is machine-specific
 
-Two legacy-metrics anomalies showed up on this machine and not on a normal desktop:
+The display geometry here is unusual in two ways, and the numbers a probe returns depend on the *DPI-awareness
+class of the process asking*. Measured 16/11/2026 on the same machine, same session, two processes:
 
-| Probe | Value | Expected on a normal landscape monitor |
-|---|---|---|
-| `GetDpiForSystem()` | 96 (100 %) — fixed at logon | matches the monitor scale (144 / 150 % here) |
-| `GetDeviceCaps(HORZRES / VERTRES)` | 800 × 1280 — **portrait** | 1920 × 1200 landscape |
-| `dmDisplayOrientation` (current mode) | 1 (90°) | 0 |
+| Probe | DPI-unaware caller | Per-monitor-v2-aware caller | Expected on a normal landscape monitor |
+|---|---|---|---|
+| `GetDpiForSystem()` | 96 (100 %) | 144 (150 %) | one value matching the monitor scale |
+| `SM_CXSCREEN × SM_CYSCREEN` | 1280 × 800 | 1920 × 1200 | 1920 × 1200 |
+| `GetDeviceCaps(HORZRES / VERTRES)` | 800 × 1280 — **portrait, transposed** | 1920 × 1200 | 1920 × 1200 landscape |
+| `dmDisplayOrientation` | 1 (90°) | 1 (90°) | 0 |
+| Panel (EDID / WMI) | 12 × 19 cm, native source mode `1600 × 2560` | same | landscape panel |
 
-The panel is portrait hardware presented rotated, so the legacy GDI surface metrics come back
-transposed, and the *system* DPI does not track the *monitor* DPI. TouchDesigner is per-monitor
-DPI-aware, so it sizes its floating dialogs from a coordinate space in which those two disagree —
-and the result is a maximized window.
+So the panel is portrait hardware presented rotated 90°, and Windows hands the same screen to two caller
+classes in two different coordinate spaces. Something in TouchDesigner's dialog sizing ends up with a
+maximized window.
 
-This is a plausible mechanism, not a proven one: proving it would need TouchDesigner's source or a
-second machine with the same panel geometry. What *is* proven is the behaviour (dialogs are created
-with `SW_SHOWMAXIMIZED`) and that it is independent of every user-settable setting.
+**What this does not prove.** TouchDesigner is itself per-monitor DPI aware (`GetProcessDpiAwareness` = 2,
+`GetDpiForWindow(main)` = 144), so it is not the "unaware" caller in that table and the mismatch above cannot
+by itself be its input. It remains the best explanation available — the alternatives were all eliminated
+(§3) — but the chain from "rotated panel" to "`SW_SHOWMAXIMIZED`" is not observed. Proving it would need
+TouchDesigner's source or a second machine with the same panel geometry. What *is* proven is the behaviour
+(dialogs are created with `SW_SHOWMAXIMIZED`, reproducibly, on a default project) and that it is independent
+of every user-settable setting — which is enough for the fix, since the fix acts on the window state rather
+than on its cause.
 
 ## 6. Fixes that were tried and rejected
 
@@ -141,6 +148,6 @@ PowerShell script (`powershell.exe` is Microsoft-signed and passes). The `.cs` s
 > at 1920×1200 and 2560×1600, with Parsec stopped and with the font cache rebuilt. Not reproducible
 > by any user-settable option.
 >
-> Likely related to the rotated panel: `GetDpiForSystem()` returns 96 (100 %) while the monitor and
-> TD's windows are at 144 (150 %), and `GetDeviceCaps(HORZRES/VERTRES)` returns 800×1280 — portrait
-> — for a landscape desktop.
+> Likely related to the rotated panel: from a DPI-unaware process `GetDpiForSystem()` reports 96 (100 %)
+> and `GetDeviceCaps(HORZRES/VERTRES)` reports 800×1280 — portrait — for a 1920×1200 landscape desktop,
+> while a per-monitor-aware process is told 144 (150 %) and 1920×1200. TD's own windows are at 144.
