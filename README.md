@@ -79,6 +79,17 @@ last dialogs restored from `restore.log`.
 <kbd>Tab</kbd>, reads the dialog's window state and tells you **normal** or **MAXIMIZED**
 (exit code 0 or 2). Use `-NoInput` to only report, `-Close` to close the dialog afterwards.
 
+Measured on the machine this was written for, same TouchDesigner session, same <kbd>Tab</kbd>:
+
+| Watcher | OP Create Dialog | `verify.ps1` |
+|---|---|---|
+| running | `normal`, 1176×950 at (372,107), `zoomed=False` | exit 0 |
+| not running (`toggle.ps1 off`) | `MAXIMIZED`, 1920×1200 at (0,0), `zoomed=True` | exit 2 |
+
+The install cycle was tested the same way: fresh install from the one-liner, reinstall over a
+running copy (old instance stopped, exactly one left), `toggle.ps1 off` / `on`, and
+`uninstall.ps1` (no process, no Startup entry, no folder left behind).
+
 ## Turn it off and on
 
 ```powershell
