@@ -1,0 +1,14 @@
+# Windows
+Thumbs.db
+desktop.ini
+*.lnk
+*.lnk.disabled
+
+# runtime bits the installer creates in %LOCALAPPDATA%\TDDialogRestore
+restore.log
+*.exe
+
+# editor / OS noise
+.DS_Store
+.vscode/
+*.swp
